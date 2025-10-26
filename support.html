@@ -1,0 +1,38 @@
+<!doctype html><html lang="ru"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>DirectSwap — Поддержка</title>
+<link rel="stylesheet" href="static/css/style.css"/>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head><body class="tg"><div class="shell">
+<div class="topbar">
+  <div class="brand"><img class="logo" src="static/img/logo.svg" alt="DirectSwap"/><div class="wordmark">DirectSwap</div></div>
+  <div class="nav"><a class="nav-link" href="index.html">Главная</a><a class="nav-link" href="profile.html">Личный кабинет</a><a class="nav-link active" href="support.html">Поддержка</a></div>
+</div>
+<div class="card">
+  <h3>Поддержка</h3>
+  <div class="grid">
+    <div class="field"><label>Тема</label><input id="supportTopic" placeholder="Коротко опишите тему"/></div>
+    <div class="field"><label>Контакт (если хотите)</label><input id="supportContact" placeholder="@username, телефон или e-mail"/></div>
+    <div class="field"><label>Сообщение</label><textarea id="supportMessage" rows="4" placeholder="Опишите, что случилось"></textarea></div>
+    <button class="cta" id="supportSend">Отправить</button>
+  </div>
+</div>
+<div class="footer">© 2024 DirectSwap</div>
+</div>
+
+<div class="modal-backdrop" id="mb"></div>
+<div class="modal" id="usernameModal">
+  <h3>Ваш Telegram @юзернейм</h3>
+  <div class="field">
+    <label>Укажите ваш @username</label>
+    <input id="usernameInput" type="text" placeholder="@example" inputmode="text">
+    <small style="color:#9fd">Формат: @имя (5–32 символов: латиница/цифры/нижнее подчёркивание)</small>
+  </div>
+  <div class="actions"><button class="btn" id="cancelUsername">Отмена</button><button class="btn primary" id="saveUsername" disabled>Продолжить</button></div>
+</div>
+<div class="modal" id="successModal">
+  <h3>Обращение отправлено</h3>
+  <p>Спасибо! Мы получили ваше сообщение. Можете перейти в Telegram-чат для дальнейшей связи.</p>
+  <div class="actions"><a id="goChat" class="btn primary" href="#" target="_blank" rel="noopener">Перейти в чат</a><button class="btn" id="closeSuccess">Закрыть</button></div>
+</div>
+<script src="static/js/app.js"></script></body></html>

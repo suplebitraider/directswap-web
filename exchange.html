@@ -1,0 +1,46 @@
+<!doctype html><html lang="ru"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>DirectSwap — Обмен</title>
+<link rel="stylesheet" href="static/css/style.css"/>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head><body class="tg"><div class="shell">
+<div class="topbar">
+  <div class="brand"><img class="logo" src="static/img/logo.svg" alt="DirectSwap"/><div class="wordmark">DirectSwap</div></div>
+  <div class="nav"><a class="nav-link" href="index.html">Главная</a><a class="nav-link" href="profile.html">Личный кабинет</a><a class="nav-link" href="support.html">Поддержка</a></div>
+</div>
+<div class="card">
+  <h3 style="margin:6px 0 10px">Обменять криптовалюту</h3>
+  <div class="grid">
+    <div class="field"><label>Что отдаёте</label><div class="row">
+      <select id="currency"><option>USDT</option></select>
+      <input id="amount" type="number" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="field"><label>Сеть</label>
+      <div class="networks" id="networkCards">
+        <label class="net-card active"><input class="net-radio" type="radio" name="net" value="TRC20" checked><img src="static/img/networks/trc20.svg" alt="TRC-20"><div><div class="net-title">USDT</div><div class="net-sub">TRC-20</div></div></label>
+        <label class="net-card"><input class="net-radio" type="radio" name="net" value="ERC20"><img src="static/img/networks/erc20.svg" alt="ERC-20"><div><div class="net-title">USDT</div><div class="net-sub">ERC-20</div></div></label>
+        <label class="net-card"><input class="net-radio" type="radio" name="net" value="TON"><img src="static/img/networks/ton.svg" alt="TON"><div><div class="net-title">USDT</div><div class="net-sub">TON</div></div></label>
+      </div>
+    </div>
+    <div class="field"><label>Комиссия сервиса</label><div style="padding:12px;border-radius:12px;background:#0c1115;border:1px solid #1a2731">3% (фиксированно)</div></div>
+    <div class="field"><label>Итог (RUB)</label><div class="summary">
+      <div>Итоговая сумма (до комиссии): <b><span id="gross">0.00</span> ₽</b></div>
+      <div>Комиссия сервиса : <b><span id="fee">0.00</span> ₽</b></div>
+      <div class="total">К выплате: <b><span id="rub-result">0.00</span> ₽</b></div>
+    </div></div>
+    <button class="cta" id="submit">Начать обмен</button>
+  </div>
+</div>
+<div class="footer">© 2024 DirectSwap</div>
+
+<div class="modal-backdrop" id="mb"></div>
+<div class="modal" id="warnModal"><h3>Важно!</h3><p class="warn">Не сохраняйте этот адрес. 
+Используйте его только один раз и только для данной операции. 
+Перевод криптовалюты в иной сети приведет к потере ваших средств. 
+Сумма, указанная в заявке, должна поступить на адрес криптообменника одной транзакцией.
+
+Комиссия за перевод оплачивается Вами.</p><div class="actions"><button class="btn" id="cancelWarn">Отмена</button><button class="btn primary" id="confirmWarn">Я ознакомлен</button></div></div>
+<div class="modal" id="cardModal"><h3>Данные для выплат</h3><div class="field"><label>Номер карты (16 цифр)</label><input id="cardNumber" inputmode="numeric" placeholder="XXXX XXXX XXXX XXXX" maxlength="19"></div><div class="actions"><button class="btn" id="cancelCard">Отмена</button><button class="btn primary" id="sendApplication" disabled>Отправить заявку</button></div></div>
+<div class="modal" id="usernameModal"><h3>Ваш Telegram @юзернейм</h3><div class="field"><label>Укажите ваш @username</label><input id="usernameInput" type="text" placeholder="@example" inputmode="text"><small style="color:#9fd">Формат: @имя (5–32 символов: латиница/цифры/нижнее подчёркивание)</small></div><div class="actions"><button class="btn" id="cancelUsername">Отмена</button><button class="btn primary" id="saveUsername" disabled>Продолжить</button></div></div>
+<div class="modal" id="successModal"><h3>Заявка создана</h3><p>Мы уже получили вашу заявку. Нажмите, чтобы перейти в чат Telegram.</p><div class="actions"><a id="goChat" class="btn primary" href="#" target="_blank" rel="noopener">Перейти в чат</a><button class="btn" id="closeSuccess">Закрыть</button></div></div>
+<script src="static/js/app.js"></script></body></html>
