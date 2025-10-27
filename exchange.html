@@ -43,13 +43,13 @@
 <div class="modal" id="cardModal"><h3>Данные для выплат</h3><div class="field"><label>Номер карты (16 цифр)</label><input id="cardNumber" inputmode="numeric" placeholder="XXXX XXXX XXXX XXXX" maxlength="19"></div><div class="actions"><button class="btn" id="cancelCard">Отмена</button><button class="btn primary" id="sendApplication" disabled>Отправить заявку</button></div></div>
 <div class="modal" id="usernameModal"><h3>Ваш Telegram @юзернейм</h3><div class="field"><label>Укажите ваш @username</label><input id="usernameInput" type="text" placeholder="@example" inputmode="text"><small style="color:#9fd">Формат: @имя (5–32 символов: латиница/цифры/нижнее подчёркивание)</small></div><div class="actions"><button class="btn" id="cancelUsername">Отмена</button><button class="btn primary" id="saveUsername" disabled>Продолжить</button></div></div>
 <div class="modal" id="successModal"><h3>Заявка создана</h3><p>Мы уже получили вашу заявку. Нажмите, чтобы перейти в чат Telegram.</p><div class="actions"><a id="goChat" class="btn primary" href="#" target="_blank" rel="noopener">Перейти в чат</a><button class="btn" id="closeSuccess">Закрыть</button></div></div>
-<script src="static/js/app.js"></script><!-- === DirectSwap: универсальная отправка заявки в Telegram === -->
+<script src="static/js/app.js"></script><!-- === DirectSwap: делегированная отправка заявки в Telegram === -->
 <script>
 (function(){
   const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
-  try { TG && (TG.ready(), TG.expand()); } catch (e) {}
+  try { TG && (TG.ready(), TG.expand()); } catch(e){}
 
-  // Утилиты
+  // ===== утилиты =====
   function $(sel){ return document.querySelector(sel); }
   function txt(id, def=''){
     const el = document.getElementById(id);
@@ -72,68 +72,54 @@
       amount: txt('amount'),
       usd_rub: txt('usd-rub'),
       calc: {
-        result_rub: txt('rub-result'),
+        result_rub:     txt('rub-result'),
         commission_rub: txt('fee')
       },
       card_number: (txt('cardNumber') || txt('cardInput')),
       username: TG?.initDataUnsafe?.user?.username ? ('@' + TG.initDataUnsafe.user.username) : ''
     };
   }
-  function sendNow(origin='unknown'){
-    if (!TG){ alert('Откройте мини-приложение из Telegram.'); console.warn('[DS] TG missing'); return; }
+  function sendNow(origin){
+    if (!TG){ console.warn('[DS] Telegram.WebApp missing'); alert('Откройте мини-приложение из Telegram.'); return; }
     const payload = buildPayload();
     console.log(`[DS] sendData payload (${origin}) →`, payload);
-    TG.sendData(JSON.stringify(payload));
+    TG.sendData(JSON.stringify(payload));       // синхронно, без setTimeout
     console.log('[DS] sendData вызван ✅');
   }
 
-  // 1) Первый шаг — «Начать обмен»: НИЧЕГО не отправляем, просто лог
+  // Первый шаг — просто лог, чтобы видеть, что цепочка начата
   const btnSubmit = $('#submit');
   if (btnSubmit){
-    if (btnSubmit.type && btnSubmit.type.toLowerCase()==='submit') btnSubmit.type = 'button';
-    const forms = document.querySelectorAll('form'); // на всякий
+    if (btnSubmit.type && btnSubmit.type.toLowerCase()==='submit') btnSubmit.type='button';
+    const forms = document.querySelectorAll('form');
     forms.forEach(f => f.addEventListener('submit', e => e.preventDefault()));
     btnSubmit.addEventListener('click', ()=>console.log('[DS] #submit → старт цепочки'));
   }
 
-  // 2) Кандидаты финальных действий: подтверждение карты / логина / переход в чат
-  const candidates = [
-    '#confirmCard',                     // если есть такая кнопка
+  // === Делегированный обработчик кликов (capture), работает даже при динамическом DOM ===
+  const FINAL_SELECTORS = [
+    '#confirmCard',
     'button[data-action="confirm-card"]',
-    '#confirmUsername',                 // если подтверждаешь username
+    '#confirmUsername',
     'button[data-send="order"]',
-    '#goChat',                          // кнопка в success-модалке
-    '#confirmWarn'                      // на крайний случай — после предупреждения
-  ];
-  let finalBtn = null;
-  for (const sel of candidates){
-    const el = $(sel);
-    if (el){ finalBtn = el; console.log('[DS] hook final button:', sel); break; }
-  }
+    '#goChat',                 // кнопка/ссылка в success-модалке
+  ].join(',');
 
-  if (finalBtn){
-    // ВАЖНО: ничего не блокируем — даем UI закрыть модалки/показать «успех»
-    finalBtn.addEventListener('click', ()=>{
-      setTimeout(()=>sendNow('final-button'), 80);
-    });
-  } else {
-    // 3) Если финальной кнопки нет — ловим submit формы в модалке карты
-    const cardForm = $('#cardModal form') || $('#cardForm');
-    if (cardForm){
-      cardForm.addEventListener('submit', (e)=>{
-        e.preventDefault(); e.stopPropagation();
-        setTimeout(()=>sendNow('card-form'), 50);
-      }, true);
-      console.log('[DS] hook: card form');
-    } else {
-      console.log('[DS] финальная кнопка/форма не найдены — отправка не будет вызвана');
-    }
-  }
+  document.addEventListener('click', (e)=>{
+    const target = e.target.closest(FINAL_SELECTORS);
+    if (!target) return;
 
-  // 4) Горячая клавиша для теста на ПК: Ctrl/Cmd + T
+    // НЕ блокируем UI, просто отправляем данные синхронно и даём странице жить
+    const tag = target.id || target.getAttribute('data-action') || target.getAttribute('data-send') || target.tagName;
+    console.log('[DS] delegate click on →', tag);
+    sendNow('delegate:' + tag);
+  }, true); // capture=true — перехватываем до перехода по ссылке
+
+  // Хоткей для ПК: Ctrl/Cmd + T — тестовая отправка
   window.addEventListener('keydown', (e)=>{
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='t'){
-      e.preventDefault(); sendNow('hotkey-ctrl+t');
+      e.preventDefault();
+      sendNow('hotkey');
     }
   });
 })();
