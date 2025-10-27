@@ -43,24 +43,21 @@
 <div class="modal" id="cardModal"><h3>Данные для выплат</h3><div class="field"><label>Номер карты (16 цифр)</label><input id="cardNumber" inputmode="numeric" placeholder="XXXX XXXX XXXX XXXX" maxlength="19"></div><div class="actions"><button class="btn" id="cancelCard">Отмена</button><button class="btn primary" id="sendApplication" disabled>Отправить заявку</button></div></div>
 <div class="modal" id="usernameModal"><h3>Ваш Telegram @юзернейм</h3><div class="field"><label>Укажите ваш @username</label><input id="usernameInput" type="text" placeholder="@example" inputmode="text"><small style="color:#9fd">Формат: @имя (5–32 символов: латиница/цифры/нижнее подчёркивание)</small></div><div class="actions"><button class="btn" id="cancelUsername">Отмена</button><button class="btn primary" id="saveUsername" disabled>Продолжить</button></div></div>
 <div class="modal" id="successModal"><h3>Заявка создана</h3><p>Мы уже получили вашу заявку. Нажмите, чтобы перейти в чат Telegram.</p><div class="actions"><a id="goChat" class="btn primary" href="#" target="_blank" rel="noopener">Перейти в чат</a><button class="btn" id="closeSuccess">Закрыть</button></div></div>
-<script src="static/js/app.js"></script><!-- === DirectSwap: надёжная отправка заявки в Telegram === -->
+<script src="static/js/app.js"></script><!-- === DirectSwap: надёжная отправка заявки в Telegram (multi-hook) === -->
 <script>
 (function(){
-  // 0) Telegram объект
   const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
-  try { TG && (TG.ready(), TG.expand()); } catch(e){}
+  try { TG && (TG.ready(), TG.expand()); } catch(e) {}
 
-  // 1) Вспомогательные функции
+  function $(sel){ return document.querySelector(sel); }
   function txt(id, def=''){
     const el = document.getElementById(id);
     if (!el) return def;
     return ('value' in el) ? (el.value||'').toString().trim() : (el.textContent||'').toString().trim();
   }
   function getNetwork(){
-    // активная «плитка»
     const active = document.querySelector('[data-network].active,[data-network].selected');
     if (active) return active.getAttribute('data-network') || active.textContent.trim();
-    // radio/селект, если используешь
     const r = document.querySelector('input[name="network"]:checked');
     if (r) return r.value;
     const s = document.getElementById('network');
@@ -68,92 +65,84 @@
     return 'USDT';
   }
   function buildPayload(){
-    const payload = {
+    return {
       type: 'exchange_request',
       network: getNetwork(),
-      amount:       txt('amount'),
-      usd_rub:      txt('usd-rub'),
+      amount: txt('amount'),
+      usd_rub: txt('usd-rub'),
       calc: {
-        result_rub:     txt('rub-result'),
+        result_rub: txt('rub-result'),
         commission_rub: txt('fee')
       },
-      card_number:  txt('cardNumber') || txt('cardInput'),
+      card_number: (txt('cardNumber') || txt('cardInput')),
       username: TG?.initDataUnsafe?.user?.username ? ('@' + TG.initDataUnsafe.user.username) : ''
     };
-    return payload;
   }
-
-  // 2) Ищем кнопку отправки
-  function findSubmitBtn(){
-    return (
-      document.getElementById('sendApplication') ||
-      document.getElementById('submitOrder') ||
-      document.getElementById('submit') ||
-      document.querySelector('button[data-send="order"]') ||
-      document.querySelector('button[type="submit"]') ||
-      document.querySelector('.cta button') ||
-      document.querySelector('button.cta')
-    );
-  }
-
-  function attach(){
-    const btn = findSubmitBtn();
-    if (!btn) { console.warn('[DirectSwap] Нет кнопки отправки — укажи её id, я добавлю.'); return; }
-
-    // блокируем сабмит формы, если есть
-    const forms = document.querySelectorAll('form');
-    forms.forEach(f => f.addEventListener('submit', e => e.preventDefault()));
-
-    // если у кнопки type="submit" — заменим на button
-    if (btn.type && btn.type.toLowerCase() === 'submit') btn.type = 'button';
-
-    btn.addEventListener('click', async (e) => {
-      try{
-        e.preventDefault();
-
-        if (!TG) {
-          alert('Откройте мини-приложение из бота, а не по прямой ссылке.');
-          console.warn('[DirectSwap] Telegram.WebApp отсутствует');
-          return;
-        }
-
-        const payload = buildPayload();
-        console.log('[DirectSwap] sendData payload →', payload);
-
-        // небольшая задержка, чтобы закрылись модальные/валидация
-        await new Promise(r => setTimeout(r, 50));
-        TG.sendData(JSON.stringify(payload));
-        console.log('[DirectSwap] sendData вызван ✅');
-      }catch(err){
-        console.error('[DirectSwap] Ошибка отправки ❌', err);
-        alert('Не удалось отправить заявку. Проверьте поля и попробуйте ещё раз.');
-      }
-    });
-
-    console.log('[DirectSwap] Хэндлер прикреплён к кнопке:', btn.id || btn.className || btn.textContent);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', attach);
-  } else {
-    attach();
-  }
-})();
-</script>// Принудительно перехватываем клик и глушим чужие обработчики
-<script>
-  const btnHard = document.getElementById('submit');
-if (btnHard) {
-  btnHard.addEventListener('click', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    // повторно отправим данные (если основной обработчик не сработал)
-    const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
-    if (!TG) { alert('Откройте мини-приложение из бота.'); return; }
-    const payload = (typeof buildPayload === 'function') ? buildPayload() : {};
-    console.log('[DirectSwap][HARD] sendData payload →', payload);
+  function sendNow(origin='unknown'){
+    if (!TG){ alert('Откройте мини-приложение из бота.'); console.warn('[DirectSwap] TG missing'); return; }
+    const payload = buildPayload();
+    console.log(`[DirectSwap] sendData payload (${origin}) →`, payload);
     TG.sendData(JSON.stringify(payload));
-  }, true); // capture=true
+    console.log('[DirectSwap] sendData вызван ✅');
+  }
 
+  // 1) Кнопка первого шага (Начать обмен)
+  const btnSubmit = document.getElementById('submit');
+  if (btnSubmit){
+    // не отправляем здесь — только открываем цепочку модалок
+    if (btnSubmit.type && btnSubmit.type.toLowerCase()==='submit') btnSubmit.type = 'button';
+    const forms = document.querySelectorAll('form'); // на всякий случай
+    forms.forEach(f => f.addEventListener('submit', e => e.preventDefault()));
+    console.log('[DirectSwap] hook: #submit');
+  }
+
+  // 2) Кнопка подтверждения карты (финальный шаг) — пробуем популярные id/селекторы
+  const candidates = [
+    '#confirmCard',          // если так названо у тебя
+    'button[data-action="confirm-card"]',
+    '#sendApplication',      // встречалось в ранних версиях
+    '#confirmUsername',      // если еще подтверждение логина
+    'button[data-send="order"]'
+  ];
+  let finalBtn = null;
+  for (const sel of candidates){
+    const el = $(sel);
+    if (el){ finalBtn = el; console.log('[DirectSwap] hook final button:', sel); break; }
+  }
+
+  if (finalBtn){
+    finalBtn.addEventListener('click', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      // Бывает, что модалка закрывается асинхронно — дадим 50мс и шлём
+      setTimeout(()=>sendNow('final-button'), 50);
+    }, true);
+  } else {
+    // 3) Если финальной кнопки нет — пытаемся перехватить форму модалки карты
+    const cardForm = document.querySelector('#cardModal form') || document.getElementById('cardForm');
+    if (cardForm){
+      cardForm.addEventListener('submit', (e)=>{
+        e.preventDefault(); e.stopPropagation();
+        setTimeout(()=>sendNow('card-form'), 50);
+      }, true);
+      console.log('[DirectSwap] hook: card form');
+    } else {
+      // 4) Совсем жёсткий перехват по клику по кнопке submit (если id неизвестен)
+      if (btnSubmit){
+        btnSubmit.addEventListener('click', (e)=>{
+          // не шлём сразу; пусть откроется цепочка. Для диагностики — лог:
+          console.log('[DirectSwap] #submit click — ждём финальную кнопку.');
+        }, true);
+      }
+    }
+  }
+
+  // 5) На всякий случай — горячая клавиша T отправляет тест (только разработчику в консоли)
+  window.addEventListener('keydown', (e)=>{
+    if (e.key.toLowerCase()==='t' && (e.ctrlKey || e.metaKey)){
+      e.preventDefault();
+      sendNow('hotkey-ctrl+t');
+    }
+  });
+})();
+</script>
 <!-- === /DirectSwap === -->
-</body></html>
