@@ -35,4 +35,74 @@
   <p>Спасибо! Мы получили ваше сообщение. Можете перейти в Telegram-чат для дальнейшей связи.</p>
   <div class="actions"><a id="goChat" class="btn primary" href="#" target="_blank" rel="noopener">Перейти в чат</a><button class="btn" id="closeSuccess">Закрыть</button></div>
 </div>
-<script src="static/js/app.js"></script></body></html>
+<script src="static/js/app.js"></script><script>
+(function(){
+  const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+  try { TG && (TG.ready(), TG.expand()); } catch(e){}
+
+  function $(sel){ return document.querySelector(sel); }
+  function txt(id, def=''){
+    const el = document.getElementById(id);
+    return el && 'value' in el ? (el.value||'').trim() : def;
+  }
+
+  // Обработчик отправки обращения в поддержку
+  const supportBtn = $('#supportSend');
+  if (supportBtn){
+    supportBtn.addEventListener('click', function() {
+      const topic = txt('supportTopic');
+      const contact = txt('supportContact');
+      const message = txt('supportMessage');
+      
+      if (!topic || !message) {
+        alert('Заполните тему и сообщение!');
+        return;
+      }
+
+      const payload = {
+        type: 'support_request',
+        topic: topic,
+        contact: contact,
+        message: message,
+        username: TG?.initDataUnsafe?.user?.username ? ('@' + TG.initDataUnsafe.user.username) : ''
+      };
+
+      console.log('Support payload:', payload);
+
+      // 1) Основной путь - через Telegram WebApp
+      if (TG) {
+        TG.sendData(JSON.stringify(payload));
+      }
+
+      // 2) Резервный путь - напрямую на backend
+      fetch('https://directswap-bot.onrender.com/collect', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      })
+      .then(r => r.json())
+      .then(data => {
+        console.log('Support request sent:', data);
+        // Показываем модалку успеха
+        $('#successModal').style.display = 'block';
+        $('#mb').style.display = 'block';
+      })
+      .catch(err => {
+        console.warn('Support request failed:', err);
+        alert('Ошибка отправки. Попробуйте ещё раз.');
+      });
+    });
+  }
+
+  // Обработчик закрытия модалки
+  const closeSuccess = $('#closeSuccess');
+  if (closeSuccess){
+    closeSuccess.addEventListener('click', function() {
+      $('#successModal').style.display = 'none';
+      $('#mb').style.display = 'none';
+      if (TG) TG.close();
+    });
+  }
+
+})();
+</script></body></html>
