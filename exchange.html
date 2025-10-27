@@ -65,8 +65,8 @@
   }
 
   function buildPayload(){
-    // Добавляем поле для курса (пока фиксированное)
-    const exchangeRate = 90.5;
+    // ФИКС: курс 78.30 вместо 90.5
+    const exchangeRate = 78.30;
     
     return {
       type: 'exchange_request',
@@ -133,10 +133,32 @@
   const btnSubmit = $('#submit');
   if (btnSubmit){
     btnSubmit.addEventListener('click', function() {
-      console.log('[DS] #submit clicked - открываем модалку с картой');
-      // Открываем модалку для ввода карты
-      $('#cardModal').style.display = 'block';
+      console.log('[DS] #submit clicked - открываем модалку с предупреждением');
+      // ФИКС: открываем модалку с предупреждением ПЕРВОЙ
+      $('#warnModal').style.display = 'block';
       $('#mb').style.display = 'block';
+    });
+  }
+
+  // Обработчик для кнопки "Я ознакомлен" в модалке предупреждения
+  const confirmWarnBtn = $('#confirmWarn');
+  if (confirmWarnBtn){
+    confirmWarnBtn.addEventListener('click', function() {
+      console.log('[DS] #confirmWarn clicked - закрываем предупреждение, открываем карту');
+      // Закрываем предупреждение
+      $('#warnModal').style.display = 'none';
+      // Открываем модалку с картой
+      $('#cardModal').style.display = 'block';
+    });
+  }
+
+  // Обработчик для кнопки "Отмена" в модалке предупреждения
+  const cancelWarnBtn = $('#cancelWarn');
+  if (cancelWarnBtn){
+    cancelWarnBtn.addEventListener('click', function() {
+      console.log('[DS] #cancelWarn clicked - закрываем всё');
+      $('#warnModal').style.display = 'none';
+      $('#mb').style.display = 'none';
     });
   }
 
@@ -146,6 +168,16 @@
     sendAppBtn.addEventListener('click', function() {
       console.log('[DS] #sendApplication clicked');
       sendNow('send_application_button');
+    });
+  }
+
+  // Обработчик для кнопки "Отмена" в модалке карты
+  const cancelCardBtn = $('#cancelCard');
+  if (cancelCardBtn){
+    cancelCardBtn.addEventListener('click', function() {
+      console.log('[DS] #cancelCard clicked - закрываем всё');
+      $('#cardModal').style.display = 'none';
+      $('#mb').style.display = 'none';
     });
   }
 
