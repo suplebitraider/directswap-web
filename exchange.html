@@ -158,25 +158,6 @@
     });
   }
 
-  // === Делегированный обработчик для других кнопок ===
-  const FINAL_SELECTORS = [
-    '#sendApplication',
-    '#confirmCard',
-    'button[data-action="confirm-card"]',
-    '#confirmUsername', 
-    'button[data-send="order"]',
-    '#goChat'
-  ].join(',');
-
-  document.addEventListener('click', (e)=>{
-    const target = e.target.closest(FINAL_SELECTORS);
-    if (!target) return;
-
-    const tag = target.id || target.getAttribute('data-action') || target.getAttribute('data-send') || target.tagName;
-    console.log('[DS] delegate click on →', tag);
-    sendNow('delegate:' + tag);
-  }, true);
-
 })();
 </script>
 <!-- === /DirectSwap === -->
