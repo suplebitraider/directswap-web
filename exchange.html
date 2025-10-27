@@ -139,6 +139,21 @@
     attach();
   }
 })();
-</script>
+</script>// Принудительно перехватываем клик и глушим чужие обработчики
+<script>
+  const btnHard = document.getElementById('submit');
+if (btnHard) {
+  btnHard.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    // повторно отправим данные (если основной обработчик не сработал)
+    const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+    if (!TG) { alert('Откройте мини-приложение из бота.'); return; }
+    const payload = (typeof buildPayload === 'function') ? buildPayload() : {};
+    console.log('[DirectSwap][HARD] sendData payload →', payload);
+    TG.sendData(JSON.stringify(payload));
+  }, true); // capture=true
+
 <!-- === /DirectSwap === -->
 </body></html>
