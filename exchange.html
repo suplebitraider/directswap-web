@@ -43,7 +43,8 @@
 <div class="modal" id="cardModal"><h3>Данные для выплат</h3><div class="field"><label>Номер карты (16 цифр)</label><input id="cardNumber" inputmode="numeric" placeholder="XXXX XXXX XXXX XXXX" maxlength="19"></div><div class="actions"><button class="btn" id="cancelCard">Отмена</button><button class="btn primary" id="sendApplication" disabled>Отправить заявку</button></div></div>
 <div class="modal" id="usernameModal"><h3>Ваш Telegram @юзернейм</h3><div class="field"><label>Укажите ваш @username</label><input id="usernameInput" type="text" placeholder="@example" inputmode="text"><small style="color:#9fd">Формат: @имя (5–32 символов: латиница/цифры/нижнее подчёркивание)</small></div><div class="actions"><button class="btn" id="cancelUsername">Отмена</button><button class="btn primary" id="saveUsername" disabled>Продолжить</button></div></div>
 <div class="modal" id="successModal"><h3>Заявка создана</h3><p>Мы уже получили вашу заявку. Нажмите, чтобы перейти в чат Telegram.</p><div class="actions"><a id="goChat" class="btn primary" href="#" target="_blank" rel="noopener">Перейти в чат</a><button class="btn" id="closeSuccess">Закрыть</button></div></div>
-<script src="static/js/app.js"></script><!-- === DirectSwap: делегированная отправка заявки в Telegram === -->
+<script src="static/js/app.js"></script>
+<!-- === DirectSwap: отправка заявки в Telegram === -->
 <script>
 (function(){
   const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
@@ -56,73 +57,126 @@
     if (!el) return def;
     return ('value' in el) ? (el.value||'').toString().trim() : (el.textContent||'').toString().trim();
   }
+  
+  // ФИКС: правильное получение сети
   function getNetwork(){
-    const active = document.querySelector('[data-network].active,[data-network].selected');
-    if (active) return active.getAttribute('data-network') || active.textContent.trim();
-    const r = document.querySelector('input[name="network"]:checked');
-    if (r) return r.value;
-    const s = document.getElementById('network');
-    if (s && s.value) return s.value;
-    return 'USDT';
+    const checked = document.querySelector('input[name="net"]:checked');
+    return checked ? checked.value : 'TRC20';
   }
+
   function buildPayload(){
+    // Добавляем поле для курса (пока фиксированное)
+    const exchangeRate = 90.5;
+    
     return {
       type: 'exchange_request',
       network: getNetwork(),
       amount: txt('amount'),
-      usd_rub: txt('usd-rub'),
+      usd_rub: exchangeRate.toString(),
       calc: {
-        result_rub:     txt('rub-result'),
+        result_rub: txt('rub-result'),
         commission_rub: txt('fee')
       },
-      card_number: (txt('cardNumber') || txt('cardInput')),
+      card_number: (txt('cardNumber') || '').replace(/\s/g, ''),
       username: TG?.initDataUnsafe?.user?.username ? ('@' + TG.initDataUnsafe.user.username) : ''
     };
   }
+
+  // ===== ОСНОВНАЯ ФУНКЦИЯ ОТПРАВКИ =====
   function sendNow(origin){
-    if (!TG){ console.warn('[DS] Telegram.WebApp missing'); alert('Откройте мини-приложение из Telegram.'); return; }
+    if (!TG){ 
+      console.warn('[DS] Telegram.WebApp missing'); 
+      alert('Откройте мини-приложение из Telegram.'); 
+      return; 
+    }
+    
     const payload = buildPayload();
     console.log(`[DS] sendData payload (${origin}) →`, payload);
-    TG.sendData(JSON.stringify(payload));       // синхронно, без setTimeout
-    console.log('[DS] sendData вызван ✅');
+    
+    // Проверяем обязательные поля
+    if (!payload.amount || payload.amount === '0.00') {
+      alert('Укажите сумму для обмена!');
+      return;
+    }
+    
+    if (!payload.card_number || payload.card_number.length < 16) {
+      alert('Укажите корректный номер карты!');
+      return;
+    }
+    
+    // 1) основной путь — в Telegram
+    console.log('[DS] Отправка через Telegram.WebApp.sendData...');
+    TG.sendData(JSON.stringify(payload));
+    
+    // 2) резерв — напрямую в backend
+    console.log('[DS] Отправка резервного запроса...');
+    fetch('https://directswap-bot.onrender.com/collect', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => console.log('[DS] Резервный запрос успешен:', data))
+    .catch(err => console.warn('[DS] Резервный запрос не удался:', err));
+    
+    console.log('[DS] Оба метода отправки вызваны ✅');
+    
+    // Закрываем мини-приложение через секунду
+    setTimeout(() => {
+      TG.close();
+    }, 1000);
   }
 
-  // Первый шаг — просто лог, чтобы видеть, что цепочка начата
+  // ===== ОБРАБОТЧИКИ КНОПОК =====
+  
+  // Обработчик для основной кнопки "Начать обмен"
   const btnSubmit = $('#submit');
   if (btnSubmit){
-    if (btnSubmit.type && btnSubmit.type.toLowerCase()==='submit') btnSubmit.type='button';
-    const forms = document.querySelectorAll('form');
-    forms.forEach(f => f.addEventListener('submit', e => e.preventDefault()));
-    btnSubmit.addEventListener('click', ()=>console.log('[DS] #submit → старт цепочки'));
+    btnSubmit.addEventListener('click', function() {
+      console.log('[DS] #submit clicked - открываем модалку с картой');
+      // Открываем модалку для ввода карты
+      $('#cardModal').style.display = 'block';
+      $('#mb').style.display = 'block';
+    });
   }
 
-  // === Делегированный обработчик кликов (capture), работает даже при динамическом DOM ===
+  // Обработчик для кнопки "Отправить заявку" в модалке карты
+  const sendAppBtn = $('#sendApplication');
+  if (sendAppBtn){
+    sendAppBtn.addEventListener('click', function() {
+      console.log('[DS] #sendApplication clicked');
+      sendNow('send_application_button');
+    });
+  }
+
+  // Включаем кнопку отправки когда введена карта
+  const cardInput = $('#cardNumber');
+  if (cardInput){
+    cardInput.addEventListener('input', function() {
+      const cardNum = this.value.replace(/\s/g, '');
+      $('#sendApplication').disabled = cardNum.length < 16;
+    });
+  }
+
+  // === Делегированный обработчик для других кнопок ===
   const FINAL_SELECTORS = [
+    '#sendApplication',
     '#confirmCard',
     'button[data-action="confirm-card"]',
-    '#confirmUsername',
+    '#confirmUsername', 
     'button[data-send="order"]',
-    '#goChat',                 // кнопка/ссылка в success-модалке
+    '#goChat'
   ].join(',');
 
   document.addEventListener('click', (e)=>{
     const target = e.target.closest(FINAL_SELECTORS);
     if (!target) return;
 
-    // НЕ блокируем UI, просто отправляем данные синхронно и даём странице жить
     const tag = target.id || target.getAttribute('data-action') || target.getAttribute('data-send') || target.tagName;
     console.log('[DS] delegate click on →', tag);
     sendNow('delegate:' + tag);
-  }, true); // capture=true — перехватываем до перехода по ссылке
+  }, true);
 
-  // Хоткей для ПК: Ctrl/Cmd + T — тестовая отправка
-  window.addEventListener('keydown', (e)=>{
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='t'){
-      e.preventDefault();
-      sendNow('hotkey');
-    }
-  });
 })();
 </script>
 <!-- === /DirectSwap === -->
-
